@@ -123,9 +123,11 @@ class _HomePageState extends State<HomePage> {
                   viewportFraction: 0.85,
                 ),
                 items: [
-                  'assets/images/home_wallpaper.png',
-                  'assets/images/rice.png',
-                  'assets/images/home_wallpaper.png',
+                  'assets/images/crop_img1.jpg',
+                  'assets/images/crop_img2.jpg',
+                  'assets/images/crop_img3.jpg',
+                  'assets/images/crop_img4.jpg',
+                  'assets/images/crop_img5.jpg',
                 ].map((imagePath) {
                   return Builder(
                     builder: (BuildContext context) {
@@ -175,6 +177,8 @@ class _HomePageState extends State<HomePage> {
                 ),
                 child: Center(
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center, // vertically center
+                    crossAxisAlignment: CrossAxisAlignment.center, // horizontally center
                     children: [
                       Text(
                         'DhanyaSetu',
@@ -183,7 +187,9 @@ class _HomePageState extends State<HomePage> {
                           fontWeight: FontWeight.bold,
                           color: Colors.deepPurple.shade800,
                           letterSpacing: 1.2,
+
                         ),
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 10),
                       Text(
@@ -193,6 +199,7 @@ class _HomePageState extends State<HomePage> {
                           color: Colors.deepPurple.shade600,
                           fontStyle: FontStyle.italic,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 15),
                       const Divider(

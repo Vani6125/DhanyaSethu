@@ -63,42 +63,64 @@ class _SoilReportDashboardScreenState extends State<SoilReportDashboardScreen>
     'OrganicCarbon': 0.0,
   };
 
+  // CORRECTED optimal ranges (in mg/kg unless otherwise specified)
   final Map<String, Map<String, double>> optimalRanges = {
-    'Nitrogen': {'min': 150, 'max': 300, 'critical': 100},
-    'Phosphorus': {'min': 25, 'max': 50, 'critical': 15},
-    'Potassium': {'min': 150, 'max': 300, 'critical': 100},
-    'pH': {'min': 6.0, 'max': 7.5, 'critical': 5.5},
-    'OrganicCarbon': {'min': 0.5, 'max': 2.0, 'critical': 0.3},
+    'Nitrogen': {'min': 20, 'max': 50, 'critical': 10},    // N (ppm)
+    'Phosphorus': {'min': 15, 'max': 30, 'critical': 5},   // P (ppm)
+    'Potassium': {'min': 100, 'max': 250, 'critical': 50}, // K (ppm)
+    'pH': {'min': 6.0, 'max': 7.5, 'critical': 5.5},       // pH scale
+    'OrganicCarbon': {'min': 0.8, 'max': 2.0, 'critical': 0.5}, // % OC
   };
-
   Map<String, String> remedies = {};
 
   Map<String, String> getRemedies(Map<String, double> data) {
     Map<String, String> result = {};
 
-    if (data['Nitrogen']! < 150) {
-      result['Nitrogen'] =
-      'Apply urea (46-0-0) at 100-150 kg/ha or ammonium sulfate. Use green manure crops like dhaincha or incorporate compost at 5-10 tons/ha.';
-    }
-    if (data['Phosphorus']! < 25) {
-      result['Phosphorus'] =
-      'Apply DAP (18-46-0) at 100-150 kg/ha or Single Super Phosphate. Use well-decomposed farmyard manure at 10-15 tons/ha.';
-    }
-    if (data['Potassium']! < 150) {
-      result['Potassium'] =
-      'Use Muriate of Potash (MOP) at 60-100 kg/ha. Incorporate crop residues and apply wood ash for organic potassium.';
-    }
-    if (data['pH']! < 5.5) {
-      result['pH'] =
-      'Soil is acidic. Apply agricultural lime at 1-2 tons/ha. Grow pH-tolerant crops like millets, tea, or blueberries.';
-    } else if (data['pH']! > 8) {
-      result['pH'] =
-      'Soil is alkaline. Use gypsum at 2-4 tons/ha and add organic matter. Consider sulfur application at 200-400 kg/ha.';
-    }
-    if (data['OrganicCarbon']! < 0.5) {
-      result['Organic Carbon'] =
-      'Add compost at 5-10 tons/ha, green manure, or farmyard manure regularly. Practice crop rotation with legumes.';
-    }
+    data.forEach((key, value) {
+      final range = optimalRanges[key]!;
+
+      if (value < range['critical']!) {
+        result[key] = 'Critical low level. Immediate intervention needed.';
+      } else if (value < range['min']!) {
+        // Existing low remedies
+        switch (key) {
+          case 'Nitrogen':
+            result[key] = 'Apply urea (46-0-0) at 100-150 kg/ha or ammonium sulfate. Use green manure crops like dhaincha or incorporate compost at 5-10 tons/ha.';
+            break;
+          case 'Phosphorus':
+            result[key] = 'Apply DAP (18-46-0) at 100-150 kg/ha or Single Super Phosphate. Use well-decomposed farmyard manure at 10-15 tons/ha.';
+            break;
+          case 'Potassium':
+            result[key] = 'Use Muriate of Potash (MOP) at 60-100 kg/ha. Incorporate crop residues and apply wood ash for organic potassium.';
+            break;
+          case 'pH':
+            result[key] = 'Soil is acidic. Apply agricultural lime at 1-2 tons/ha. Grow pH-tolerant crops like millets, tea, or blueberries.';
+            break;
+          case 'OrganicCarbon':
+            result[key] = 'Add compost at 5-10 tons/ha, green manure, or farmyard manure regularly. Practice crop rotation with legumes.';
+            break;
+        }
+      } else if (value > range['max']!) {
+        // NEW: Remedies for high values
+        switch (key) {
+          case 'Nitrogen':
+            result[key] = 'Nitrogen is too high. Avoid nitrogen-based fertilizers. Grow high nitrogen-demanding crops like maize or sorghum to reduce excess.';
+            break;
+          case 'Phosphorus':
+            result[key] = 'Phosphorus is too high. Stop phosphorus fertilization. Use crops with high phosphorus uptake like sunflower or cotton.';
+            break;
+          case 'Potassium':
+            result[key] = 'Potassium is too high. Reduce potassium fertilizer application and avoid applying wood ash or MOP.';
+            break;
+          case 'pH':
+            result[key] = 'Soil is alkaline. Use gypsum at 2-4 tons/ha and add organic matter. Consider sulfur application at 200-400 kg/ha.';
+            break;
+          case 'OrganicCarbon':
+            result[key] = 'Organic carbon is high (not a big problem), but monitor nutrient lock-up. Avoid overuse of organic manures.';
+            break;
+        }
+      }
+    });
 
     return result;
   }
@@ -132,6 +154,15 @@ class _SoilReportDashboardScreenState extends State<SoilReportDashboardScreen>
     }
   }
 
+  bool _isSoilHealthy() {
+    return soilData.entries.every((entry) {
+      final nutrient = entry.key;
+      final value = entry.value;
+      final range = optimalRanges[nutrient]!;
+      return value >= range['min']! && value <= range['max']!;
+    });
+  }
+
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
@@ -139,7 +170,110 @@ class _SoilReportDashboardScreenState extends State<SoilReportDashboardScreen>
         remedies = getRemedies(soilData);
       });
       _animationController.forward();
+
+      // Show snackbar if soil is healthy
+      if (_isSoilHealthy()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Your soil is in optimal condition!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     }
+  }
+
+  Widget _buildHealthySoilCard() {
+    return Card(
+      elevation: 8,
+      margin: EdgeInsets.symmetric(vertical: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [Colors.green[50]!, Colors.white],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.verified, size: 60, color: Colors.green),
+            SizedBox(height: 16),
+            Text(
+              'Soil Health: Optimal',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.green[800],
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'All parameters are within ideal ranges for most crops',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green[100]!, width: 1),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.eco, size: 20, color: Colors.green[700]),
+                      SizedBox(width: 8),
+                      Text(
+                        'Maintain Current Practices',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green[800],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  ...['Regular soil testing', 'Balanced fertilization', 'Crop rotation'].map(
+                        (item) => Padding(
+                      padding: EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.circle, size: 8, color: Colors.green[600]),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              item,
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: Colors.green[800],
+                                height: 1.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ).toList(),
+                ],
+              ),
+            )
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildTextField(String label) {
@@ -351,7 +485,7 @@ class _SoilReportDashboardScreenState extends State<SoilReportDashboardScreen>
         title: Row(
           children: [
             SizedBox(width: 8),
-            Text('Soil Report Dashboard',style: TextStyle(color: Colors.white),),
+            Text('Soil Report Dashboard', style: TextStyle(color: Colors.white)),
           ],
         ),
         backgroundColor: Colors.deepPurple,
@@ -367,10 +501,10 @@ class _SoilReportDashboardScreenState extends State<SoilReportDashboardScreen>
         ),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-        drawer: CustomDrawer(
-          user: FirebaseAuth.instance.currentUser,
-          context: context,
-        ),
+      drawer: CustomDrawer(
+        user: FirebaseAuth.instance.currentUser,
+        context: context,
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -457,127 +591,133 @@ class _SoilReportDashboardScreenState extends State<SoilReportDashboardScreen>
                 ),
               ),
               SizedBox(height: 40),
-              if (remedies.isNotEmpty) ...[
-                _buildPieChart(),
-                SizedBox(height: 40),
-                FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Column(
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Colors.deepPurple[500]!, Colors.deepPurple[400]!],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          "Soil Health Analysis",
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      SizedBox(height: 16),
-                      ...soilData.entries.map((entry) =>
-                          _buildNutrientCard(entry.key, entry.value)
-                      ).toList(),
-                      SizedBox(height: 20),
-                      Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Colors.orange[700]!, Colors.orange[500]!],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          "Personalized Recommendations",
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      SizedBox(height: 16),
-                      ...remedies.entries.map((entry) => Card(
-                        margin: EdgeInsets.symmetric(vertical: 8),
-                        elevation: 8,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Container(
-                          padding: EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            gradient: LinearGradient(
-                              colors: [Colors.white, Colors.orange[50]!],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+              if (_isSoilHealthy())
+                _buildHealthySoilCard()
+              else if (remedies.isNotEmpty)
+                Column(
+                  children: [
+                    _buildPieChart(),
+                    SizedBox(height: 40),
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Column(
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Colors.deepPurple[500]!, Colors.deepPurple[400]!],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Text(
+                              "Soil Health Analysis",
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+                          SizedBox(height: 16),
+                          ...soilData.entries.map((entry) =>
+                              _buildNutrientCard(entry.key, entry.value)).toList(),
+                          SizedBox(height: 20),
+                          Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Colors.orange[700]!, Colors.orange[500]!],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Text(
+                              "Personalized Recommendations",
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          SizedBox(height: 16),
+                          ...remedies.entries.map((entry) => Card(
+                            margin: EdgeInsets.symmetric(vertical: 8),
+                            elevation: 8,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Container(
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                gradient: LinearGradient(
+                                  colors: [Colors.white, Colors.orange[50]!],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Container(
-                                    padding: EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange[100],
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(
-                                      _getIconForNutrient(entry.key),
-                                      color: Colors.orange[700],
-                                    ),
-                                  ),
-                                  SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      entry.key,
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.orange[800],
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange[100],
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Icon(
+                                          _getIconForNutrient(entry.key),
+                                          color: Colors.orange[700],
+                                        ),
                                       ),
+                                      SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          entry.key,
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.orange[800],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 12),
+                                  Text(
+                                    entry.value,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey[700],
+                                      height: 1.5,
                                     ),
                                   ),
                                 ],
                               ),
-                              SizedBox(height: 12),
-                              Text(
-                                entry.value,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey[700],
-                                  height: 1.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )).toList(),
-                    ],
-                  ),
-                ),
-              ] else
+                            ),
+                          )).toList(),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              else
                 Container(
                   padding: EdgeInsets.all(32),
                   child: Center(
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.agriculture,
@@ -585,22 +725,29 @@ class _SoilReportDashboardScreenState extends State<SoilReportDashboardScreen>
                           color: Colors.deepPurple,
                         ),
                         SizedBox(height: 16),
-                        Text(
-                          "Welcome to Soil Analysis",
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.deepPurple,
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            "Welcome to Soil Analysis",
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.deepPurple,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
-                        SizedBox(height: 8),
-                        Text(
-                          "Enter your soil test values above to get personalized recommendations for better crop yields",
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
+                        SizedBox(height: 16),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            "Enter your soil test values above to get personalized recommendations for better crop yields",
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
                         ),
                       ],
                     ),
@@ -610,75 +757,74 @@ class _SoilReportDashboardScreenState extends State<SoilReportDashboardScreen>
           ),
         ),
       ),
-
-    bottomNavigationBar: Container(
-    decoration: BoxDecoration(
-    boxShadow: [
-    BoxShadow(
-    color: Colors.deepPurple.withOpacity(0.1),
-    blurRadius: 10,
-    spreadRadius: 2,
-    ),
-    ],
-    border: Border(
-    top: BorderSide(
-    color: Colors.deepPurple.withOpacity(0.1),
-    width: 1,
-    ),
-    ),
-    ),
-    child: BottomNavigationBar(
-    currentIndex: _selectedIndex,
-    onTap: _onItemTapped,
-    selectedItemColor: Colors.deepPurple,
-    unselectedItemColor: Colors.grey[700],
-    backgroundColor: Colors.white,
-    elevation: 10,
-    selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
-    type: BottomNavigationBarType.fixed,
-    items: [
-    BottomNavigationBarItem(
-    icon: Container(
-    padding: const EdgeInsets.all(5),
-    decoration: BoxDecoration(
-    shape: BoxShape.circle,
-    color: _selectedIndex == 0
-    ? Colors.deepPurple.withOpacity(0.2)
-        : Colors.transparent,
-    ),
-    child: const Icon(Icons.biotech),
-    ),
-    label: 'Disease',
-    ),
-    BottomNavigationBarItem(
-    icon: Container(
-    padding: const EdgeInsets.all(5),
-    decoration: BoxDecoration(
-    shape: BoxShape.circle,
-    color: _selectedIndex == 1
-    ? Colors.deepPurple.withOpacity(0.2)
-        : Colors.transparent,
-    ),
-    child: const Icon(Icons.home),
-    ),
-    label: 'Home',
-    ),
-    BottomNavigationBarItem(
-    icon: Container(
-    padding: const EdgeInsets.all(5),
-    decoration: BoxDecoration(
-    shape: BoxShape.circle,
-    color: _selectedIndex == 2
-    ? Colors.deepPurple.withOpacity(0.2)
-        : Colors.transparent,
-    ),
-    child: const Icon(Icons.science),
-    ),
-    label: 'Soil',
-    ),
-    ],
-    ),
-    )
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.deepPurple.withOpacity(0.1),
+              blurRadius: 10,
+              spreadRadius: 2,
+            ),
+          ],
+          border: Border(
+            top: BorderSide(
+              color: Colors.deepPurple.withOpacity(0.1),
+              width: 1,
+            ),
+          ),
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+          selectedItemColor: Colors.deepPurple,
+          unselectedItemColor: Colors.grey[700],
+          backgroundColor: Colors.white,
+          elevation: 10,
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+          type: BottomNavigationBarType.fixed,
+          items: [
+            BottomNavigationBarItem(
+              icon: Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _selectedIndex == 0
+                      ? Colors.deepPurple.withOpacity(0.2)
+                      : Colors.transparent,
+                ),
+                child: const Icon(Icons.biotech),
+              ),
+              label: 'Disease',
+            ),
+            BottomNavigationBarItem(
+              icon: Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _selectedIndex == 1
+                      ? Colors.deepPurple.withOpacity(0.2)
+                      : Colors.transparent,
+                ),
+                child: const Icon(Icons.home),
+              ),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _selectedIndex == 2
+                      ? Colors.deepPurple.withOpacity(0.2)
+                      : Colors.transparent,
+                ),
+                child: const Icon(Icons.science),
+              ),
+              label: 'Soil',
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -114,7 +114,7 @@ class AboutScreen extends StatelessWidget {
                         height: 1.7,
                         color: Colors.black87,
                       ),
-                      textAlign: TextAlign.justify,
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
