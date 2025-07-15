@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "821142592803",
+    "project_id": "dhanyasethu-8d886",
+    "storage_bucket": "dhanyasethu-8d886.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:821142592803:android:990e0cc9b822082adcc096",
+        "android_client_info": {
+          "package_name": "com.example.talentfarm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfzZM5v_LXURbwr759Yc8WnxiIPxpwnos"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
